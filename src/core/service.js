@@ -25,18 +25,19 @@ export function createService({store=openStore(), deliver=sendMail}={}) {
   const duplicate=(key,message='This request has already been recorded.')=>{if(find(key))throw new AppError(message,409)};
   const requirePending=(id,status='pending')=>{const row=get(id);if(!row || row.kind!==config.kind)throw new AppError('Record not found.',404);if(row.status!==status)throw new AppError('This record has already been updated.',409);return row};
   const instructions={welcome:'Arrive at the main entrance at 09:00. We will show you the sign-in desk.',setup:'Meet at the loading entrance at 08:00. Wear comfortable shoes.',cleanup:'Meet by the stage at 17:00. Supplies will be provided.'};
-const onSubmit=data=>{duplicate(data.email,'This email is already on the volunteer list.');const row=insert(config.kind,data,'registered',data.email);notify(row,'signup',data.email,'Your Community Day volunteer details',`Hello ${data.name},\nThank you for joining the ${data.role} team.\n${instructions[data.role]}\nYour availability: ${data.availability}`);return row};
+const onSubmit=data=>{if(find(data.email))return {};const row=insert(config.kind,data,'registered',data.email);notify(row,'signup',data.email,'Your Community Day volunteer details',`Hello ${data.name},\nThank you for joining the ${data.role} team.\n${instructions[data.role]}\nYour availability: ${data.availability}`);return row};
 const publicView=()=>({count:records(config.kind).length,rows:[]});
   const adminExtra=()=>({});
   const onAction=()=>{throw new AppError('Unknown operator action.',400)};
   const accessDescription=()=>'';
   const onRedeem=()=>{throw new AppError('Unknown link action.',400)};
-  let flushing=false;
-  async function flush() {
-    if(flushing)return; flushing=true;
+  let flushing=null;
+  function flush() {
+    return flushing ||= run().finally(()=>{flushing=null});
+  }
+  async function run() {
     const save=(id,result)=>db.prepare('UPDATE outbox SET status=?,provider_id=?,error=? WHERE id=?').run(result.status,result.providerId || '',result.error || null,id);
-    try {
-      while(true) {
+    while(true) {
         const candidates=db.prepare("SELECT * FROM outbox WHERE status='pending' ORDER BY created_at LIMIT 20").all();
         if(!candidates.length)break;
         const claimed=[];
@@ -52,7 +53,6 @@ const publicView=()=>({count:records(config.kind).length,rows:[]});
           catch(error){save(row.id,{status:error.uncertain?'unknown':'failed',error:error.message || 'Sending failed.'});}
         }
       }
-    } finally {flushing=false;}
   }
   async function submit(input, identity='local') {
     const parsed=submissionSchema.safeParse(input);
