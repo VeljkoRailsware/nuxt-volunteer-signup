@@ -1,7 +1,7 @@
 import config from './config.js';
 import {service} from './service.js';
 import {AppError, requireAdmin, sameOrigin, safeError, responseHeaders} from './security.js';
-import {homeHtml,adminHtml,accessHtml,messageHtml} from './views.js';
+import {homeHtml,adminHtml,messageHtml} from './views.js';
 
 export const html=(body,status=200,extra={})=>new Response(body,{status,headers:responseHeaders({'Content-Type':'text/html; charset=utf-8',...extra})});
 export async function parseBody(request) {
@@ -21,7 +21,6 @@ export async function handle(request,identity='shared-client',getService=service
     const {pathname}=new URL(request.url);
     if(pathname==='/health')return Response.json({ok:true},{headers:responseHeaders()});
     if(request.method==='GET' && pathname==='/admin'){requireAdmin(request.headers);return html(adminHtml(getService().adminView()))}
-    if(request.method==='GET' && pathname.startsWith('/access/'))return html(accessHtml(getService().access(decodeURIComponent(pathname.slice(8)))));
     if(request.method!=='POST')throw new AppError('Not found.',404);
     sameOrigin(request.headers);
     const input=await parseBody(request);
@@ -29,17 +28,7 @@ export async function handle(request,identity='shared-client',getService=service
       if(config.adminOnly)requireAdmin(request.headers);
       const result=await getService().submit(input,identity);
       if(request.headers.get('accept')?.includes('application/json'))return Response.json(result,{headers:responseHeaders()});
-      return html(homeHtml(getService().publicView(),result.message));
-    }
-    if(pathname==='/api/admin') {
-      requireAdmin(request.headers);
-      const result=await getService().action(input);
-      return html(adminHtml(getService().adminView(),result.message,result.url));
-    }
-    if(pathname==='/api/redeem') {
-      const result=await getService().redeem(input.token,input.decision);
-      if(result.download)return new Response(result.download,{headers:responseHeaders({'Content-Type':'text/plain; charset=utf-8','Content-Disposition':'attachment; filename="project-kickoff-checklist.txt"'})});
-      return html(messageHtml(result.message));
+      return html(homeHtml(result.message));
     }
     throw new AppError('Not found.',404);
   }catch(error){

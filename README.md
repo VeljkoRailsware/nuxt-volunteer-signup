@@ -66,13 +66,13 @@ Example form values:
 | `HOST`, `PORT` | Production listener settings where supported by the framework |
 | `MAIL_MODE` | `sandbox`, `production`, or local-only `log` |
 
-Email credential variables are documented in [email setup](docs/email-setup.md). Frameworks must be restarted after environment changes. Customize the app's public copy, fields, seeded event details, or menu in `src/core/config.js`; Nuxt also uses `app-definition.json` for its client-visible definition. Keep those two definitions consistent when editing.
+Email credential variables are documented in [email setup](docs/email-setup.md). Frameworks must be restarted after environment changes. Customize the app's public copy and fields in `app-definition.json`, shared by Nuxt and the server.
 
 ## Where the main idea lives
 
 - `app/pages/index.vue` (reactive Vue form) and `server/api/submit.post.ts` (Nitro route).
 - `src/core/service.js`: the application's workflow, field validation, and atomic state changes.
-- `src/core/store.js`: SQLite records, hashed tokens, rate counters, and a small email outbox.
+- `src/core/store.js`: SQLite records, rate counters, and a small email outbox.
 - `src/core/mail.js`: server-side email transport and environment selection.
 - `test/workflow.test.mjs`: workflow and permission edge cases.
 - `test/email.test.mjs`: transport configuration tests using local doubles.
